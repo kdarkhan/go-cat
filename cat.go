@@ -4,6 +4,7 @@ import flag "github.com/spf13/pflag"
 import "fmt"
 import "os"
 import "strings"
+import "bufio"
 
 func main() {
 
@@ -26,12 +27,14 @@ func main() {
 
 	if *verFlag {
 		printVersionInformation()
+		return
 	}
 
 	if *helpFlag {
 		fmt.Printf(strings.TrimLeft(usagePre, "\n") + "\n")
 		flag.CommandLine.PrintDefaults()
 		fmt.Printf(usagePost)
+		return
 	}
 
 	if *numberNonEmpty {
@@ -54,10 +57,103 @@ func main() {
 		*showEnds = true
 	}
 
-	cat(os.Args[len(os.Args)-flag.NArg():], *numberNonEmpty, *numberAll, *showEnds, *showNonPrinting, *showTabs, *squezeBlank)
+	failed := cat(os.Args[len(os.Args)-flag.NArg():], *numberNonEmpty, *numberAll, *showEnds, *showNonPrinting, *showTabs, *squezeBlank)
+	if failed {
+		// cat exists with error code 1 when file is not found, do the same
+		os.Exit(1)
+	}
 }
 
-func cat(inputs []string, numberNonEmpty, numberAll, showEnds, showNonPrinting, showTabs, squezeBlank bool) {
+func cat(inputs []string, numberNonEmpty, numberAll, showEnds, showNonPrinting, showTabs, squezeBlank bool) bool {
+	if len(inputs) == 0 {
+		inputs = []string{"-"}
+	}
+	failed := false
+
+	lineNum := 1
+
+	for _, input := range inputs {
+		if input == "-" {
+			catReader(bufio.NewReader(os.Stdin), &lineNum, numberNonEmpty, numberAll, showEnds, showNonPrinting, showTabs, squezeBlank)
+		} else {
+			file, err := os.Open(input)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "cat: %s: No such file or directory\n", input)
+				failed = true
+				continue
+			}
+			catReader(bufio.NewReader(file), &lineNum, numberNonEmpty, numberAll, showEnds, showNonPrinting, showTabs, squezeBlank)
+		}
+	}
+	return failed
+}
+
+func catReader(reader *bufio.Reader, lineNum *int, numberNonEmpty, numberAll, showEnds, showNonPrinting, showTabs, squezeBlank bool) {
+	fileScanner := bufio.NewScanner(reader)
+
+	fileScanner.Split(bufio.ScanLines)
+
+	previousWasEmpty := false
+	endLineSymbol := ""
+	if showEnds {
+		endLineSymbol = "$"
+	}
+
+	for fileScanner.Scan() {
+		line := fileScanner.Text()
+		isEmpty := line == ""
+
+		if !isEmpty || !previousWasEmpty || !squezeBlank {
+			if showTabs {
+				line = strings.ReplaceAll(line, "\t", "^I")
+			}
+			if showNonPrinting {
+				line = escapeString(line)
+			}
+
+			numberPrefix := ""
+			if (numberNonEmpty && !isEmpty) || numberAll {
+				numberPrefix = fmt.Sprintf("%6d	", *lineNum)
+			}
+
+			fmt.Printf("%s%s%s\n", numberPrefix, line, endLineSymbol)
+			if !isEmpty || numberAll {
+				*lineNum += 1
+			}
+		}
+
+		previousWasEmpty = isEmpty
+	}
+}
+
+// Replace non-printable characters using Caret notation
+// https://en.wikipedia.org/wiki/C0_and_C1_control_codes
+func escapeString(line string) string {
+	var sb strings.Builder
+	sb.Grow(len(line))
+
+	for _, r := range line {
+		int_r := int(r)
+		if int_r >= 0 && int_r < 31 && int_r != 9 {
+			sb.WriteString("^" + string(64+int_r))
+		} else if int_r == 127 {
+			sb.WriteString("^?")
+		} else {
+			sb.WriteRune(r)
+		}
+	}
+
+	return sb.String()
+}
+
+func splitNewLine(line string) (string, string) {
+	for i := len(line) - 1; i >= 0; i-- {
+		if line[i] != '\r' && line[i] != '\n' {
+			return line[:i+1], line[i+1:]
+		}
+	}
+
+	return "", line
 }
 
 const usagePre string = `
@@ -75,7 +171,6 @@ Examples:
 
 const version string = `
 go-cat 0.1
-Hello world
 `
 
 func printVersionInformation() {
