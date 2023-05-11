@@ -1,0 +1,13 @@
+Hello world
+
+
+
+Multiple blank spaces above which are squizable
+
+This line contains tabs in quotes "			" here
+
+			This line has leading tabs
+
+This line has trailing whitespace  
+
+This line has multiple non-printable characters		q
