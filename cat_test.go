@@ -112,7 +112,7 @@ func TestSameAsCat(t *testing.T) {
 			assert.NotNil(t, actualErr)
 		}
 
-		assert.Equal(t, string(expectedOut), string(actualOut), "Test <%s> failed", tc.name)
+		assert.Equal(t, expectedOut, actualOut, "Test <%s> failed", tc.name)
 	}
 }
 

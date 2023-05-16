@@ -59,7 +59,7 @@ func main() {
 
 	failed := cat(os.Args[len(os.Args)-flag.NArg():], *numberNonEmpty, *numberAll, *showEnds, *showNonPrinting, *showTabs, *squezeBlank)
 	if failed {
-		// cat exists with error code 1 when file is not found, do the same
+		// cat exits with error code 1 when file is not found, do the same
 		os.Exit(1)
 	}
 }
@@ -144,16 +144,6 @@ func escapeString(line string) string {
 	}
 
 	return sb.String()
-}
-
-func splitNewLine(line string) (string, string) {
-	for i := len(line) - 1; i >= 0; i-- {
-		if line[i] != '\r' && line[i] != '\n' {
-			return line[:i+1], line[i+1:]
-		}
-	}
-
-	return "", line
 }
 
 const usagePre string = `
