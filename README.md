@@ -14,7 +14,7 @@ verify that the output of this Go implementation is the same as of `cat`.
 
 It supports the following command line parameters:
 
-```bash
+```console
 $ ./go-cat --help
 Usage: go-cat [OPTION]... [FILE]...
 Concatenate FILE(s) to standard output.
